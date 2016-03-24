@@ -1,7 +1,5 @@
 from celery.task import task
 
-from django.db.models import get_model
-
 
 @task(name='c.unittest.SomeAppTask')
 def SomeAppTask(**kwargs):
@@ -10,6 +8,12 @@ def SomeAppTask(**kwargs):
 
 @task(name='c.unittest.SomeModelTask')
 def SomeModelTask(pk):
-    model = get_model('someapp', 'Thing')
+    from django import VERSION as django_version
+    if django_version >= (1, 9):
+        from django.apps import apps
+        model = apps.get_model('someapp', 'Thing')
+    else:
+        from django.db.models import get_model
+        model = get_model('someapp', 'Thing')
     thing = model.objects.get(pk=pk)
     return thing.name

@@ -5,14 +5,20 @@ from datetime import timedelta
 
 import django
 from django.utils.encoding import smart_str
-from django.core.cache import cache, get_cache
+from django.core.cache import cache, caches
 
 from celery import current_app
 from celery.backends.base import KeyValueStoreBackend
 
 # CELERY_CACHE_BACKEND overrides the django-global(tm) backend settings.
 if current_app.conf.CELERY_CACHE_BACKEND:
-    cache = get_cache(current_app.conf.CELERY_CACHE_BACKEND)  # noqa
+    from django import VERSION as django_version
+    if django_version >= (1, 9):
+        from django.core.cache import caches
+        cache = caches[current_app.conf.CELERY_CACHE_BACKEND]  # noqa
+    else:
+        from django.core.cache import get_cache
+        cache = get_cache(current_app.conf.CELERY_CACHE_BACKEND)  # noqa
 
 
 class DjangoMemcacheWrapper(object):
@@ -36,7 +42,7 @@ class DjangoMemcacheWrapper(object):
 # Check if django is using memcache as the cache backend. If so, wrap the
 # cache object in a DjangoMemcacheWrapper for Django < 1.2 that fixes a bug
 # with retrieving pickled data.
-from django.core.cache.backends.base import InvalidCacheBackendError  # noqa
+from django.core.cache.backends.base import InvalidCacheBackendError
 try:
     from django.core.cache.backends.memcached import CacheClass
 except (ImportError, AttributeError, InvalidCacheBackendError):
